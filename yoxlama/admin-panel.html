@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Paneli</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding-top: 50px; }
+    h2 { text-align: center; }
+    #taskList { margin-top: 30px; }
+    li { margin: 10px 0; }
+    button { padding: 5px 10px; margin: 2px; }
+    #statisticsPanel { margin-top: 20px; background-color: #f2f2f2; padding: 15px; border-radius: 5px; }
+  </style>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <img src="https://cdn-icons-png.flaticon.com/512/1055/1055687.png" alt="logo">
+    <h1>Admin Paneli</h1>
+  </header>
+
+  <h2>Admin Paneli</h2>
+  
+  <button onclick="logout()">Çıxış</button>
+
+  <h3>Tapşırıq Əlavə Et</h3>
+  <input type="file" id="homeworkInput" webkitdirectory directory multiple title="Qovluq əlavə et">
+  <input type="file" id="homeworkInput" multiple title="Fayl əlavə et">
+  <button onclick="addHomework()">Tapşırıq Əlavə Et</button>
+
+  <h3>Əlavə Funksiyalar</h3>
+  <input type="text" id="searchInput" placeholder="İstifadəçi adına görə axtar" oninput="filterTasks()">
+  <button onclick="sortByDate()">Tarixə görə sırala</button>
+  <button onclick="sortByUser()">İstifadəçi adına görə sırala</button>
+  <button onclick="downloadAllAsZip()">Hamısını ZIP kimi yüklə</button>
+
+  <h3>Əlavə Olunmuş Tapşırıqlar</h3>
+  <ul id="taskList"></ul>
+
+  <h3>İstifadəçi Statistikası</h3>
+  <div id="statisticsPanel">
+    <p id="userStats">İstifadəçi statistikası burada göstəriləcək.</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <script>
+    function logout() {
+      localStorage.removeItem("currentUser");
+      window.location.href = "index.html";
+    }
+
+    function loadFiles() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const fileList = document.getElementById("taskList");
+      fileList.innerHTML = "";
+
+      uploaded.forEach((file, index) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${file.name}</strong> (${file.user})`;
+
+        const gradeInput = document.createElement("input");
+        gradeInput.placeholder = "Qiymət əlavə et";
+        gradeInput.value = file.grade || "";
+        gradeInput.disabled = file.isConfirmed;
+
+        const commentInput = document.createElement("textarea");
+        commentInput.placeholder = "Qeydlər əlavə et";
+        commentInput.value = file.comment || "";
+        commentInput.disabled = file.isConfirmed;
+
+        const confirmBtn = document.createElement("button");
+        confirmBtn.textContent = "Təsdiq Et";
+        confirmBtn.onclick = function () {
+          file.grade = gradeInput.value;
+          file.comment = commentInput.value;
+          file.isConfirmed = true;
+          localStorage.setItem("uploadedFiles", JSON.stringify(uploaded));
+          loadFiles();
+        };
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "Düzəlt";
+        editBtn.onclick = function () {
+          gradeInput.disabled = false;
+          commentInput.disabled = false;
+
+          const saveBtn = document.createElement("button");
+          saveBtn.textContent = "Yadda Saxla";
+          saveBtn.onclick = function () {
+            file.grade = gradeInput.value;
+            file.comment = commentInput.value;
+            file.isConfirmed = true; // dəyişsə belə yenə təsdiqlənmiş sayılır
+            localStorage.setItem("uploadedFiles", JSON.stringify(uploaded));
+            loadFiles();
+          };
+
+          li.appendChild(saveBtn);
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Sil";
+        deleteBtn.onclick = function () {
+          uploaded.splice(index, 1);
+          localStorage.setItem("uploadedFiles", JSON.stringify(uploaded));
+          loadFiles();
+        };
+
+        li.appendChild(gradeInput);
+        li.appendChild(commentInput);
+        li.appendChild(confirmBtn);
+        li.appendChild(editBtn);
+        li.appendChild(deleteBtn);
+
+        fileList.appendChild(li);
+      });
+
+      updateStatistics();
+    }
+
+    function updateStatistics() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const stats = {};
+
+      uploaded.forEach(file => {
+        if (!stats[file.user]) stats[file.user] = 0;
+        stats[file.user]++;
+      });
+
+      let output = "";
+      for (const user in stats) {
+        output += `${user} — ${stats[user]} tapşırıq yükləyib.<br>`;
+      }
+
+      document.getElementById("userStats").innerHTML = output;
+    }
+
+    function addHomework() {
+      const files = document.getElementById("homeworkInput").files;
+      if (files.length === 0) {
+        alert("Fayl seçin.");
+        return;
+      }
+
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const currentUser = localStorage.getItem("currentUser");
+
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          uploaded.push({
+            name: file.name,
+            base64: evt.target.result,
+            user: currentUser,
+            date: new Date().toISOString(),
+            isConfirmed: false
+          });
+
+          localStorage.setItem("uploadedFiles", JSON.stringify(uploaded));
+          loadFiles();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function displayTasks(tasks) {
+      localStorage.setItem("uploadedFiles", JSON.stringify(tasks));
+      loadFiles();
+    }
+
+    function filterTasks() {
+      const keyword = document.getElementById("searchInput").value.toLowerCase();
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const filtered = uploaded.filter(file => file.user.toLowerCase().includes(keyword));
+      displayTasks(filtered);
+    }
+
+    function sortByDate() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      uploaded.sort((a, b) => new Date(b.date) - new Date(a.date));
+      displayTasks(uploaded);
+    }
+
+    function sortByUser() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      uploaded.sort((a, b) => a.user.localeCompare(b.user));
+      displayTasks(uploaded);
+    }
+
+    function downloadAllAsZip() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const zip = new JSZip();
+
+      uploaded.forEach((file) => {
+        zip.file(file.name, file.base64.split(",")[1], { base64: true });
+      });
+
+      zip.generateAsync({ type: "blob" }).then(function (content) {
+        saveAs(content, "tapshiriqlar.zip");
+      });
+    }
+
+    window.onload = function () {
+      loadFiles();
+    };
+  </script>
+</body>
+</html>

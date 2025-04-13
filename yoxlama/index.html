@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>İstifadəçi Paneli</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding-top: 50px; }
+    h2 { text-align: center; }
+    #taskList { margin-top: 30px; }
+    li { margin: 10px 0; }
+    button { padding: 5px 10px; }
+    #statisticsPanel { margin-top: 20px; background-color: #f2f2f2; padding: 15px; border-radius: 5px; }
+  </style>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <img src="https://cdn-icons-png.flaticon.com/512/1055/1055687.png" alt="logo">
+    <h1>İstifadəçi Paneli</h1>
+  </header>
+
+  <h2>İstifadəçi Paneli</h2>
+  <button onclick="logout()">Çıxış</button>
+
+  <h3>Tapşırıq Əlavə Et</h3>
+  <input type="file" id="fileInput" multiple title="Fayl əlavə et">
+  <input type="file" id="homeworkInput" webkitdirectory directory multiple title="Qovluq əlavə et">
+  <button onclick="addFiles()">Tapşırıq Əlavə Et</button>
+
+  <h3>Əlavə Olunmuş Tapşırıqlar</h3>
+  <ul id="taskList"></ul>
+
+  <h3>Statistika</h3>
+  <div id="statisticsPanel">
+    <p id="userStats">İstifadəçi statistikası burada göstəriləcək.</p>
+  </div>
+
+  <script>
+    function logout() {
+      localStorage.removeItem("currentUser");
+      window.location.href = "index.html";
+    }
+
+    function loadFiles() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const fileList = document.getElementById("taskList");
+      fileList.innerHTML = "";
+
+      uploaded.forEach((file, index) => {
+        const li = document.createElement("li");
+        li.textContent = file.name;
+
+        if (file.grade && file.comment) {
+          const gradeText = document.createElement("span");
+          gradeText.textContent = ` | Qiymət: ${file.grade} | Qeydlər: ${file.comment}`;
+          li.appendChild(gradeText);
+        }
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.textContent = "Yüklə";
+        downloadBtn.onclick = function() {
+          const link = document.createElement("a");
+          link.href = file.base64;
+          link.download = file.name;
+          link.click();
+        };
+        li.appendChild(downloadBtn);
+
+        fileList.appendChild(li);
+      });
+    }
+
+    function addFiles() {
+      const fileInput = document.getElementById("fileInput");
+      const folderInput = document.getElementById("folderInput");
+      const files = [...fileInput.files, ...folderInput.files];
+
+      if (files.length === 0) {
+        alert("Əlavə etmək üçün fayl seçin.");
+        return;
+      }
+
+      const storedFiles = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const currentUser = localStorage.getItem("currentUser");
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          storedFiles.push({
+            name: file.name,
+            base64: evt.target.result,
+            user: currentUser
+          });
+
+          localStorage.setItem("uploadedFiles", JSON.stringify(storedFiles));
+          loadFiles();
+          updateStatistics(); // Statistikaları yenilə
+        };
+
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function updateStatistics() {
+      const uploaded = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+      const stats = {};
+
+      uploaded.forEach(file => {
+        if (!stats[file.user]) {
+          stats[file.user] = 0;
+        }
+        stats[file.user]++;
+      });
+
+      let output = "";
+      for (const user in stats) {
+        output += `${user} — ${stats[user]} tapşırıq yükləyib.<br>`;
+      }
+
+      document.getElementById("userStats").innerHTML = output;
+    }
+
+    window.onload = function() {
+      loadFiles();
+      updateStatistics(); // Statistikaları da yüklə
+    };
+  </script>
+
+</body>
+</html>
+  

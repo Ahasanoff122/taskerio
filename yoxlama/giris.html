@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>Giriş Səhifəsi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="login-container">
+    <h1>Xoş Gəldiniz</h1>
+    <p>Zəhmət olmasa giriş tipini seçin:</p>
+
+    <select id="userType">
+      <option value="user">İstifadəçi</option>
+      <option value="admin">Admin</option>
+    </select>
+
+    <input type="text" id="username" placeholder="İstifadəçi adı">
+    <input type="password" id="password" placeholder="Şifrə">
+    <button onclick="login()">Giriş et</button>
+
+    <p id="error" style="color: red;"></p>
+  </div>
+
+  <script>
+    const adminAccounts = [
+      { username: "admin", password: "admin123321" }
+    ];
+
+    const userAccounts = [];
+    for (let i = 1; i <= 16; i++) {
+      userAccounts.push({ username: `user${i}`, password: `user${i+1}` });
+    }
+
+    function login() {
+      const userType = document.getElementById("userType").value;
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const error = document.getElementById("error");
+
+      error.textContent = ""; // Əvvəlki səhv mesajını təmizlə
+
+      if (userType === "user" && !username.startsWith("user")) {
+        error.textContent = "İstifadəçi adları yalnız 'user' ilə başlamalıdır.";
+        return;
+      }
+
+      let valid = false;
+
+      if (userType === "admin") {
+        valid = adminAccounts.some(acc => acc.username === username && acc.password === password);
+        if (valid) {
+          localStorage.setItem("currentUser", username);
+          window.location.href = "admin-panel.html";
+        } else {
+          error.textContent = "Admin məlumatları yalnışdır!";
+        }
+      } else {
+        valid = userAccounts.some(acc => acc.username === username && acc.password === password);
+        if (valid) {
+          localStorage.setItem("currentUser", username);
+          window.location.href = "user-panel.html";
+        } else {
+          error.textContent = "İstifadəçi məlumatları yalnışdır!";
+        }
+      }
+    }
+  </script>
+</body>
+</html>
